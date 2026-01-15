@@ -22,6 +22,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: airflow-init
+    env_file:
+      - .env
     command: >
       bash -c "
       airflow db migrate && \
@@ -70,6 +72,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: airflow-webserver
+    env_file:
+      - .env
     command: webserver
     ports:
       - "8080:8080"
@@ -106,6 +110,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: airflow-scheduler
+    env_file:
+      - .env
     command: scheduler
     environment:
       - AIRFLOW_HOME=/opt/airflow
@@ -134,6 +140,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: airflow-worker
+    env_file:
+      - .env
     command: celery worker
     environment:
       - AIRFLOW_HOME=/opt/airflow
@@ -158,6 +166,8 @@ services:
       - airflow-init
 
   airflow-triggerer:
+    env_file:
+      - .env
     build:
       context: .
       dockerfile: Dockerfile

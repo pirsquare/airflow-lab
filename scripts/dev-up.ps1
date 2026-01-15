@@ -21,10 +21,16 @@ if (-not (Test-Path ".env")) {
     
     # Generate keys if using placeholders
     Write-Host "Generating security keys..." -ForegroundColor Yellow
-    pip install cryptography > $null 2>&1
+    pip install -q cryptography 2>&1 | Out-Null
     
-    $fernet_key = python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-    $secret_key = python -c "import secrets; print(secrets.token_hex(32))"
+    $fernet_key = python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>$null
+    if (-not $fernet_key) {
+        $fernet_key = python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    }
+    $secret_key = python3 -c "import secrets; print(secrets.token_hex(32))" 2>$null
+    if (-not $secret_key) {
+        $secret_key = python -c "import secrets; print(secrets.token_hex(32))"
+    }
     
     # Update .env with generated keys
     $env_content = Get-Content ".env" -Raw
@@ -37,12 +43,14 @@ if (-not (Test-Path ".env")) {
 
 # Load .env
 Write-Host "Loading .env..." -ForegroundColor Yellow
-Get-Content ".env" | ForEach-Object {
-    if ($_ -match "^([^=]+)=(.*)$") {
-        $key = $matches[1]
-        $value = $matches[2]
-        if ($value -ne "your-fernet-key-here" -and $value -ne "your-webserver-secret-key-here") {
-            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+if (Test-Path ".env") {
+    Get-Content ".env" | Where-Object {$_ -and -not $_.StartsWith("#")} | ForEach-Object {
+        if ($_ -match "^([^=]+)=(.*)$") {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            if ($value -and $value -ne "your-fernet-key-here" -and $value -ne "your-webserver-secret-key-here") {
+                [Environment]::SetEnvironmentVariable($key, $value, "Process")
+            }
         }
     }
 }
