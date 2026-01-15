@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  namespace: airflow
+  labels:
+    app: airflow-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      serviceAccountName: airflow
+      securityContext:
+        runAsUser: 50000
+        runAsGroup: 50000
+        fsGroup: 50000
+      containers:
+      - name: scheduler
+        image: apache/airflow:latest
+        imagePullPolicy: Always
+        command: ["airflow", "scheduler"]
+        envFrom:
+        - configMapRef:
+            name: airflow-config
+        - secretRef:
+            name: airflow-secrets
+        livenessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: dags
+          mountPath: /opt/airflow/dags
+        - name: logs
+          mountPath: /opt/airflow/logs
+        - name: plugins
+          mountPath: /opt/airflow/plugins
+      volumes:
+      - name: dags
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      - name: plugins
+        emptyDir: {}

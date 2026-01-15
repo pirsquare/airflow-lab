@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-triggerer
+  namespace: airflow
+  labels:
+    app: airflow-triggerer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-triggerer
+  template:
+    metadata:
+      labels:
+        app: airflow-triggerer
+    spec:
+      serviceAccountName: airflow
+      securityContext:
+        runAsUser: 50000
+        runAsGroup: 50000
+        fsGroup: 50000
+      containers:
+      - name: triggerer
+        image: apache/airflow:latest
+        imagePullPolicy: Always
+        command: ["airflow", "triggerer"]
+        envFrom:
+        - configMapRef:
+            name: airflow-config
+        - secretRef:
+            name: airflow-secrets
+        livenessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - airflow jobs check --job-type TriggererJob --hostname $(hostname)
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        volumeMounts:
+        - name: dags
+          mountPath: /opt/airflow/dags
+        - name: logs
+          mountPath: /opt/airflow/logs
+        - name: plugins
+          mountPath: /opt/airflow/plugins
+      volumes:
+      - name: dags
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      - name: plugins
+        emptyDir: {}
